@@ -1,0 +1,89 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #f4f6f9;
+  color: #1a1d23;
+}
+
+.header {
+  background: #1b2e4b;
+  color: white;
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.header-icon {
+  width: 36px;
+  height: 36px;
+  background: #2a9d8f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+
+.main {
+  max-width: 1100px;
+  margin: auto;
+  padding: 20px;
+}
+
+.search-wrap {
+  position: relative;
+  max-width: 500px;
+  margin-bottom: 20px;
+}
+
+#searchInput {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+}
+
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  max-height: 300px;
+  overflow: auto;
+  display: none;
+  z-index: 10;
+}
+
+.dropdown.open {
+  display: block;
+}
+
+.item {
+  padding: 10px;
+  cursor: pointer;
+}
+
+.item:hover {
+  background: #f0f9f9;
+}
+
+#content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.card {
+  background: white;
+  border-radius: 10px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+}
+
+.event {
+  border-left: 4px solid #2a9d8f;
+  padding: 10px;
+  margin-bottom: 10px;
+}
