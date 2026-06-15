@@ -29,7 +29,6 @@ async function fetchCSV(url) {
 }
 
 async function loadData() {
-  try {
     input.disabled = true;
 
     const [addr, evt] = await Promise.all([
@@ -44,13 +43,9 @@ async function loadData() {
     console.log("Events loaded:", events.length);
 
     input.disabled = false;
-    input.placeholder = `Zoek in ${addresses.length} adressen...`;
+    input.placeholder = "Search street, postal code or city" ;
 
     showEmpty();
-  } catch (e) {
-    console.error("Load error:", e);
-    content.innerHTML = `<div class="card">❌ Fout bij laden van data</div>`;
-  }
 }
 
 /* ---------------- SEARCH ---------------- */
@@ -217,13 +212,7 @@ function renderNoMap(addr, related) {
 
 /* ---------------- EMPTY STATE ---------------- */
 
-function showEmpty() {
-  content.innerHTML = `
-    <div class="card">
-      <p>🔍 Zoek een adres om te beginnen</p>
-    </div>
-  `;
-}
+
 
 /* ---------------- CLOSE DROPDOWN ---------------- */
 
