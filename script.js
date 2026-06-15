@@ -14,6 +14,24 @@ const input = document.getElementById("searchInput");
 const dropdown = document.getElementById("dropdown");
 const content = document.getElementById("content");
 
+async function geocodeAddress(addr) {
+  const query = encodeURIComponent(
+    `${addr.straat} ${addr.huisnummer}, ${addr.postcode} ${addr.stad}, Netherlands`
+  );
+
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}`;
+
+  const res = await fetch(url);
+  const data = await res.json();
+
+  if (!data || !data.length) return null;
+
+  return {
+    lat: parseFloat(data[0].lat),
+    lng: parseFloat(data[0].lon),
+  };
+}
+
 /* ---------------- LOAD DATA ---------------- */
 
 async function fetchCSV(url) {
@@ -108,19 +126,10 @@ function selectAddress(id) {
 
 /* ---------------- RENDER ---------------- */
 
-function renderAddress(addr) {
+async function renderAddress(addr) {
   const related = events.filter(
     (e) => String(e.adres_id).trim() === String(addr.id).trim()
   );
-
-  const lat = parseFloat(addr.lat);
-  const lng = parseFloat(addr.lng);
-  const hasMap = !isNaN(lat) && !isNaN(lng);
-
-  if (!hasMap) {
-    renderNoMap(addr, related);
-    return;
-  }
 
   content.innerHTML = `
     <div class="card">
@@ -131,51 +140,46 @@ function renderAddress(addr) {
 
       ${
         related.length
-          ? related
-              .map(
-                (e) => `
-            <div class="event">
-              <b>${e.naam || ""}</b><br/>
-              <small>${e.datum || ""}</small><br/>
-              ${e.beschrijving || ""}
-            </div>
-          `
-              )
-              .join("")
+          ? related.map(e => `
+              <div class="event">
+                <b>${e.naam || ""}</b><br/>
+                <small>${e.datum || ""}</small><br/>
+                ${e.beschrijving || ""}
+              </div>
+            `).join("")
           : "<p>Geen events</p>"
       }
     </div>
 
     <div class="card">
-      <div id="map" style="height:400px; width:100%;"></div>
+      <div id="map" style="height:400px;"></div>
     </div>
   `;
 
-  // 🔥 FIX: ensure DOM + iframe render before Leaflet init
-  requestAnimationFrame(() => {
+  // wait for DOM
+  requestAnimationFrame(async () => {
+    const coords = await geocodeAddress(addr);
+
+    if (!coords) {
+      document.getElementById("map").innerHTML =
+        "<p>❌ Adres niet gevonden op kaart</p>";
+      return;
+    }
+
+    if (map) map.remove();
+
+    map = L.map("map").setView([coords.lat, coords.lng], 16);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+      maxZoom: 19,
+    }).addTo(map);
+
+    L.marker([coords.lat, coords.lng]).addTo(map);
+
     setTimeout(() => {
-      if (map) {
-        map.remove();
-        map = null;
-      }
-
-      const mapEl = document.getElementById("map");
-      if (!mapEl) return;
-
-      map = L.map(mapEl).setView([lat, lng], 16);
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap contributors",
-        maxZoom: 19,
-      }).addTo(map);
-
-      L.marker([lat, lng]).addTo(map);
-
-      // 🔥 critical for Google Sites / iframe rendering
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 200);
-    }, 50);
+      map.invalidateSize();
+    }, 200);
   });
 }
 
