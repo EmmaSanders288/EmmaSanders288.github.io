@@ -1,112 +1,238 @@
-const SPREADSHEET_ID = "YOUR_SHEET_ID_HERE";
+const SPREADSHEET_ID = "1r0rv5aRsN5Y_wi-U98WHPo52vB2cteyqGxeEh-yWqDU";
 
-const URL_ADDR = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=Adressen`;
-const URL_EVT  = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=Events`;
+const URL_ADDR =
+  `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=Adressen`;
+
+const URL_EVT =
+  `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=Events`;
 
 let addresses = [];
 let events = [];
+let map = null;
 
-let map;
-let marker;
+const input = document.getElementById("searchInput");
+const dropdown = document.getElementById("dropdown");
+const content = document.getElementById("content");
 
-async function loadData() {
-  const [a, e] = await Promise.all([
-    fetchCSV(URL_ADDR),
-    fetchCSV(URL_EVT)
-  ]);
+/* ---------------- LOAD DATA ---------------- */
 
-  addresses = a;
-  events = e;
-}
-
-function fetchCSV(url) {
+async function fetchCSV(url) {
   return new Promise((resolve, reject) => {
     Papa.parse(url, {
       download: true,
       header: true,
-      complete: r => resolve(r.data),
-      error: err => reject(err)
+      skipEmptyLines: true,
+      complete: (res) => resolve(res.data || []),
+      error: (err) => reject(err),
     });
   });
 }
 
-/* SEARCH */
-document.getElementById("searchInput").addEventListener("input", (e) => {
-  const q = e.target.value.toLowerCase();
-  const dd = document.getElementById("dropdown");
+async function loadData() {
+  try {
+    input.disabled = true;
+
+    const [addr, evt] = await Promise.all([
+      fetchCSV(URL_ADDR),
+      fetchCSV(URL_EVT),
+    ]);
+
+    addresses = addr;
+    events = evt;
+
+    console.log("Addresses loaded:", addresses.length);
+    console.log("Events loaded:", events.length);
+
+    input.disabled = false;
+    input.placeholder = `Zoek in ${addresses.length} adressen...`;
+
+    showEmpty();
+  } catch (e) {
+    console.error("Load error:", e);
+    content.innerHTML = `<div class="card">❌ Fout bij laden van data</div>`;
+  }
+}
+
+/* ---------------- SEARCH ---------------- */
+
+input.addEventListener("input", (e) => {
+  const q = e.target.value.trim().toLowerCase();
 
   if (!q) {
-    dd.classList.remove("open");
+    dropdown.classList.remove("open");
     return;
   }
 
-  const results = addresses.filter(a =>
-    (a.straat || "").toLowerCase().includes(q) ||
-    (a.postcode || "").toLowerCase().includes(q) ||
-    (a.stad || "").toLowerCase().includes(q)
-  ).slice(0, 8);
+  const results = addresses
+    .filter((a) => {
+      return (
+        (a.straat || "").toLowerCase().includes(q) ||
+        (a.postcode || "").toLowerCase().includes(q) ||
+        (a.stad || "").toLowerCase().includes(q) ||
+        (a.huisnummer || "").toLowerCase().includes(q)
+      );
+    })
+    .slice(0, 8);
 
-  dd.innerHTML = results.map(a => `
-    <div class="item" onclick="selectAddress('${a.id}')">
-      <b>${a.straat} ${a.huisnummer}</b><br/>
-      <small>${a.postcode} ${a.stad}</small>
-    </div>
-  `).join("");
-
-  dd.classList.add("open");
+  renderDropdown(results);
 });
 
-function selectAddress(id) {
-  const addr = addresses.find(a => a.id == id);
-  if (!addr) return;
+function renderDropdown(results) {
+  if (!results.length) {
+    dropdown.innerHTML = `<div class="item">Geen resultaten</div>`;
+  } else {
+    dropdown.innerHTML = results
+      .map(
+        (a) => `
+        <div class="item" onclick="selectAddress('${a.id}')">
+          <b>${a.straat || ""} ${a.huisnummer || ""}</b><br/>
+          <small>${a.postcode || ""} ${a.stad || ""}</small>
+        </div>
+      `
+      )
+      .join("");
+  }
 
-  document.getElementById("searchInput").value =
-    `${addr.straat} ${addr.huisnummer}, ${addr.stad}`;
-
-  document.getElementById("dropdown").classList.remove("open");
-
-  render(addr);
+  dropdown.classList.add("open");
 }
 
-function render(addr) {
-  const related = events.filter(e => e.adres_id == addr.id);
+/* ---------------- SELECT ADDRESS ---------------- */
 
-  document.getElementById("content").innerHTML = `
+function selectAddress(id) {
+  const addr = addresses.find(
+    (a) => String(a.id).trim() === String(id).trim()
+  );
+
+  if (!addr) return;
+
+  input.value = `${addr.straat} ${addr.huisnummer}, ${addr.stad}`;
+  dropdown.classList.remove("open");
+
+  renderAddress(addr);
+}
+
+/* ---------------- RENDER ---------------- */
+
+function renderAddress(addr) {
+  const related = events.filter(
+    (e) => String(e.adres_id).trim() === String(addr.id).trim()
+  );
+
+  const lat = parseFloat(addr.lat);
+  const lng = parseFloat(addr.lng);
+  const hasMap = !isNaN(lat) && !isNaN(lng);
+
+  if (!hasMap) {
+    renderNoMap(addr, related);
+    return;
+  }
+
+  content.innerHTML = `
     <div class="card">
-      <h2>${addr.straat} ${addr.huisnummer}</h2>
-      <p>${addr.postcode} ${addr.stad}</p>
+      <h2>${addr.straat || ""} ${addr.huisnummer || ""}</h2>
+      <p>${addr.postcode || ""} ${addr.stad || ""}</p>
 
-      <h3>Events</h3>
+      <h3>Events (${related.length})</h3>
+
       ${
         related.length
-          ? related.map(e => `
-              <div class="event">
-                <b>${e.naam}</b><br/>
-                <small>${e.datum || ""}</small><br/>
-                ${e.beschrijving || ""}
-              </div>
-            `).join("")
+          ? related
+              .map(
+                (e) => `
+            <div class="event">
+              <b>${e.naam || ""}</b><br/>
+              <small>${e.datum || ""}</small><br/>
+              ${e.beschrijving || ""}
+            </div>
+          `
+              )
+              .join("")
           : "<p>Geen events</p>"
       }
     </div>
 
     <div class="card">
-      <div id="map" style="height:400px;"></div>
+      <div id="map" style="height:400px; width:100%;"></div>
     </div>
   `;
 
-  setTimeout(() => {
-    if (map) map.remove();
+  // 🔥 FIX: ensure DOM + iframe render before Leaflet init
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      if (map) {
+        map.remove();
+        map = null;
+      }
 
-    map = L.map("map").setView([addr.lat, addr.lng], 16);
+      const mapEl = document.getElementById("map");
+      if (!mapEl) return;
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap"
-    }).addTo(map);
+      map = L.map(mapEl).setView([lat, lng], 16);
 
-    marker = L.marker([addr.lat, addr.lng]).addTo(map);
-  }, 50);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+        maxZoom: 19,
+      }).addTo(map);
+
+      L.marker([lat, lng]).addTo(map);
+
+      // 🔥 critical for Google Sites / iframe rendering
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 200);
+    }, 50);
+  });
 }
 
-/* INIT */
+/* ---------------- NO MAP FALLBACK ---------------- */
+
+function renderNoMap(addr, related) {
+  content.innerHTML = `
+    <div class="card">
+      <h2>${addr.straat || ""} ${addr.huisnummer || ""}</h2>
+      <p>${addr.postcode || ""} ${addr.stad || ""}</p>
+
+      <h3>Events (${related.length})</h3>
+
+      ${
+        related.length
+          ? related
+              .map(
+                (e) => `
+            <div class="event">
+              <b>${e.naam || ""}</b><br/>
+              <small>${e.datum || ""}</small><br/>
+              ${e.beschrijving || ""}
+            </div>
+          `
+              )
+              .join("")
+          : "<p>Geen events</p>"
+      }
+
+      <p style="margin-top:10px;color:#888;">Geen coördinaten beschikbaar</p>
+    </div>
+  `;
+}
+
+/* ---------------- EMPTY STATE ---------------- */
+
+function showEmpty() {
+  content.innerHTML = `
+    <div class="card">
+      <p>🔍 Zoek een adres om te beginnen</p>
+    </div>
+  `;
+}
+
+/* ---------------- CLOSE DROPDOWN ---------------- */
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".search-wrap")) {
+    dropdown.classList.remove("open");
+  }
+});
+
+/* ---------------- INIT ---------------- */
+
 loadData();
