@@ -78,7 +78,9 @@ input.addEventListener("input", (e) => {
 
   const results = addresses
     .filter((a) => {
+      const combined = `${a.straat || ""} ${a.huisnummer || ""}`.toLowerCase();
       return (
+        combined.includes(q) ||
         (a.straat || "").toLowerCase().includes(q) ||
         (a.postcode || "").toLowerCase().includes(q) ||
         (a.stad || "").toLowerCase().includes(q) ||
