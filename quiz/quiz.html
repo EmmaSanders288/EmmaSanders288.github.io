@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Heat Resilience Quiz</title>
+
+    <link rel="stylesheet" href="style_quiz.css">
+
+    <!-- ✅ REQUIRED: PapaParse (your JS depends on this) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <style>
+        /* minimal safety styling so hidden states work */
+        #results {
+            margin-top: 20px;
+        }
+
+        .option {
+            display: block;
+            margin: 8px 0;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1>Heat Resilience Quiz</h1>
+    <div id="progressContainer">
+  <div id="progressBar"></div>
+</div>
+    <div id="quiz"></div>
+
+    <button id="backBtn">Back</button>
+    <button id="nextBtn">Next</button>
+
+    <div id="results"></div>
+</div>
+
+<!-- ✅ ensure DOM is loaded before script runs -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    init(); // your script_quiz.js defines init()
+});
+</script>
+
+<script src="script_quiz.js"></script>
+
+</body>
+</html>
