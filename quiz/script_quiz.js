@@ -189,7 +189,7 @@ radios.forEach(radio => {
 function restartQuiz() {
   currentQuestion = 0;
   answers = {};
-
+  document.getElementById("progressBar").parentElement.style.display = "block";
   document.getElementById("nextBtn").style.display = "inline-block";
   document.getElementById("backBtn").style.display = "inline-block";
 
@@ -279,74 +279,169 @@ function formatList(value, icon = "") {
     .map(v => icon + " " + v.trim())
     .join(" ");
 }
+// ─── showResults ──────────────────────────────────────────────────────────────
+// ─── showResults ──────────────────────────────────────────────────────────────
 function showResults() {
   document.getElementById("quiz").style.display = "none";
   document.getElementById("nextBtn").style.display = "none";
   document.getElementById("backBtn").style.display = "none";
+  document.getElementById("progressBar").parentElement.style.display = "none";
 
   const validIds = generateOutcomeIds();
 
-const matches = interventions.filter(i =>
-  validIds.includes(i.Outcome_id)
-);
+  const matches = interventions.filter(intervention =>
+    validIds.includes(intervention.Outcome_id)
+  );
 
   const resultsDiv = document.getElementById("results");
 
   if (matches.length === 0) {
-    resultsDiv.innerHTML = "<h2>No matching interventions found</h2>";
+    resultsDiv.innerHTML = `
+      <h2 class="results-title">No matching interventions found</h2>
+      <div class="restart-row">
+        <button id="restartBtn">Restart quiz</button>
+      </div>
+    `;
+    document.getElementById("restartBtn").onclick = restartQuiz;
     return;
   }
 
-  let html = `<h2>Recommended interventions</h2>`;
+  let cardsHtml = "";
 
-matches.forEach(intervention => {
+  matches.forEach(intervention => {
+    const outcome = outcomes.find(o =>
+      String(o.Outcome_id).trim() === String(intervention.Outcome_id).trim()
+    );
+    if (!outcome) return;
 
-  const outcome = outcomes.find(o =>
-    String(o.Outcome_id).trim() === String(intervention.Outcome_id).trim()
-  );
+    // ── Image
+    const imageHtml = outcome.Picture
+      ? `<div class="card-image-wrap">
+           <img
+             src="${normalizeImageUrl(outcome.Picture)}"
+             alt="${intervention.Interventions}"
+             loading="lazy"
+           >
+         </div>`
+      : "";
 
-  html += `
-    <div class="card">
+    // ── Resilience badges (one per comma-separated value)
+    const resilienceHtml = buildResilienceBadges(outcome.Resilliance);
 
-      ${outcome?.Picture ? `
-        <img class="card-image" src="${outcome.Picture}" alt="">
-      ` : ""}
+    // ── Landlord tile
+    const landlordHtml = outcome["Landlord permission"] === "Yes"
+      ? `<div class="info-tile landlord">
+           <span class="info-tile-icon">🏠</span>
+           <div class="info-tile-text">
+             <strong>Landlord approval required</strong>
+             <a href="#">Get mediation help →</a>
+           </div>
+         </div>`
+      : "";
 
-      <h3>${intervention.Interventions}</h3>
+    // ── Financial tile
+    const financialHtml = outcome["Financial support"] === "Yes"
+      ? `<div class="info-tile financial">
+           <span class="info-tile-icon">💰</span>
+           <div class="info-tile-text">
+             <strong>Financial support available</strong>
+             <a href="#">See what you qualify for →</a>
+           </div>
+         </div>`
+      : "";
 
-      <p class="description">${outcome?.Description || ""}</p>
+    const infoTilesHtml = (landlordHtml || financialHtml)
+      ? `<div class="info-tiles">${landlordHtml}${financialHtml}</div>`
+      : "";
 
-      <div class="badges">
+    // ── Permanent meta
+    const permanentHtml = outcome.Permanent
+      ? `<p class="meta-text">${outcome.Permanent === "Yes" ? "🔒 Permanent change" : "↩️ Reversible change"}</p>`
+      : "";
 
-        <span class="badge money">
-          💰 ${formatMoney(outcome?.Money)}
-        </span>
+    cardsHtml += `
+      <div class="card">
 
-        <span class="badge effort">
-          ⚡ Effort: ${formatMoney(outcome?.Effort)}
-        </span>
+        ${imageHtml}
 
-        ${outcome?.Resilliance ? `
-          <span class="badge resilience">
-            🌱 ${outcome.Resilliance}
-          </span>
-        ` : ""}
+        <div class="card-body">
 
-        <span class="badge permanent">
-          ♻️ ${outcome?.Permanent === "Yes" ? "Permanent" : "Temporary"}
-        </span>
+          <h3>${intervention.Interventions}</h3>
 
-        <span class="badge permission">
-          🏠 ${outcome?.["Landlord permission"] === "Yes" ? "Permission needed" : "No permission needed"}
-        </span>
+          <div class="stats-row">
+            <span class="stat-pill">💰 ${formatMoney(outcome.Money)}</span>
+            <span class="stat-pill">⚡ ${formatMoney(outcome.Effort)}</span>
+          </div>
 
+          ${resilienceHtml}
+
+          <p class="description">${outcome.Description || ""}</p>
+
+          ${infoTilesHtml}
+
+          ${permanentHtml}
+
+          <a class="info-button" href="#">More information</a>
+
+        </div>
       </div>
+    `;
+  });
 
+  resultsDiv.innerHTML = `
+    <h2 class="results-title">Recommended interventions</h2>
+    <div class="results-grid">
+      ${cardsHtml}
+    </div>
+    <div class="restart-row">
+      <button id="restartBtn">Restart quiz</button>
     </div>
   `;
-});
 
-  resultsDiv.innerHTML = html;
+  document.getElementById("restartBtn").onclick = restartQuiz;
+}
+
+// ─── Resilience badges: splits on comma, one badge per type ──────────────────
+function buildResilienceBadges(value) {
+  if (!value) return "";
+
+  // Support both "Heat resilience, Green resilience" and single values
+  const parts = value.split(",").map(s => s.trim()).filter(Boolean);
+
+  if (parts.length === 0) return "";
+
+  const badges = parts.map(part => {
+    const lower = part.toLowerCase();
+    let cls = "other";
+    let icon = "🌱";
+
+    if (lower.includes("heat"))  { cls = "heat resillian";  icon = "🔥"; }
+    else if (lower.includes("green")) { cls = "green"; icon = "🌿"; }
+    else if (lower.includes("water")) { cls = "water"; icon = "💧"; }
+
+    return `<span class="resilience-badge ${cls}">${icon} ${part}</span>`;
+  }).join("");
+
+  return `<div class="resilience-row">${badges}</div>`;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function normalizeImageUrl(url) {
+  if (!url) return "";
+  const driveMatch = url.match(/\/d\/(.*?)\//);
+  if (driveMatch) {
+    return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+  }
+  return url;
+}
+
+function resilienceIcon(value) {
+  if (!value) return "";
+  const lower = value.toLowerCase();
+  if (lower.includes("heat"))  return "🔥";
+  if (lower.includes("green")) return "🌿";
+  if (lower.includes("water")) return "💧";
+  return "🌱";
 }
 /* ---------------- START ---------------- */
 
