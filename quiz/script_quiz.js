@@ -8,10 +8,11 @@ const interventionsUrl = baseUrl + "Interventions";
 const outcomesUrl = baseUrl + "Outcomes";
 
 let questions = [];
-let interventions = [];  // 👈 THIS IS REQUIRED
+let interventions = [];
 let currentQuestion = 0;
 let answers = {};
 let outcomes = [];
+let quizStarted = false;
 
 /* ---------------- LOAD ---------------- */
 
@@ -34,10 +35,21 @@ async function init() {
   interventions = await fetchCSV(interventionsUrl);
   outcomes = await fetchCSV(outcomesUrl);
 
-  renderQuestion();
+  renderIntroScreen();
+updateProgress();
+
+}
+function goToIntro() {
+  quizStarted = false;
+  currentQuestion = 0;
+  answers = {};
+
+  document.getElementById("quiz").style.display = "block";
+  document.getElementById("results").innerHTML = "";
+
+  renderIntroScreen();
   updateProgress();
 }
-
 /* ---------------- PROGRESS ---------------- */
 
 function updateProgress() {
@@ -91,7 +103,39 @@ function getPreviousValidIndex(startIndex) {
 }
 
 /* ---------------- RENDER ---------------- */
+function renderIntroScreen() {
+  const quiz = document.getElementById("quiz");
+  const nextBtn = document.getElementById("nextBtn");
+  const backBtn = document.getElementById("backBtn");
 
+  nextBtn.style.display = "none";
+  backBtn.style.display = "none";
+
+  quiz.innerHTML = `
+  <div class="intro-screen">
+    <h2>Welcome to the Resilience Quiz</h2>
+    
+    <p>
+      Answer 5 short questions to receive personalized resilience recommendations
+      tailored to your situation.
+    </p>
+
+ 
+
+    <button id="startQuizBtn">Start quiz</button>
+  </div>
+`;
+
+  document.getElementById("startQuizBtn").onclick = () => {
+    quizStarted = true;
+    nextBtn.style.display = "inline-block";
+    backBtn.style.display = "inline-block";
+
+    currentQuestion = 0;
+    renderQuestion();
+    updateProgress();
+  };
+}
 function renderQuestion() {
   const quiz = document.getElementById("quiz");
   const nextBtn = document.getElementById("nextBtn");
@@ -107,32 +151,21 @@ function renderQuestion() {
   }
 
   if (currentQuestion >= questions.length) {
-  const quiz = document.getElementById("quiz");
+    showResults();
 
-  showResults();
+    nextBtn.style.display = "none";
+    backBtn.style.display = "none";
 
-
-  quiz.innerHTML = `
-    <h2>Results</h2>
-    <p>${outcomeIds.length ? outcomeIds.join(", ") : "No matches found"}</p>
-
-    <button id="restartBtn">Restart quiz</button>
-  `;
-
-  nextBtn.style.display = "none";
-  backBtn.style.display = "none";
-
-  document.getElementById("restartBtn").onclick = restartQuiz;
-
-  updateProgress();
-  return;
-}
+    updateProgress();
+    return;
+  }
 
   const q = questions[currentQuestion];
   const isLastQuestion = currentQuestion === questions.length - 1;
 
-nextBtn.textContent = isLastQuestion ? "Submit" : "Next";
-nextBtn.disabled = true;
+  nextBtn.textContent = isLastQuestion ? "Submit" : "Next";
+  nextBtn.disabled = true;
+
   const options = (q.options || "")
     .split(",")
     .map(v => v.trim())
@@ -149,53 +182,59 @@ nextBtn.disabled = true;
       </label>
     `).join("")}
   `;
+
   const radios = document.querySelectorAll('input[name="answer"]');
 
-radios.forEach(radio => {
-  radio.addEventListener("change", () => {
-    nextBtn.disabled = false;
+  radios.forEach(radio => {
+    radio.addEventListener("change", () => {
+      nextBtn.disabled = false;
+    });
   });
-});
+
   /* NEXT */
   nextBtn.onclick = () => {
-  const selected = document.querySelector('input[name="answer"]:checked');
+    const selected = document.querySelector('input[name="answer"]:checked');
 
-  if (!selected) {
-    alert("Select an answer");
-    return;
-  }
+    if (!selected) {
+      alert("Select an answer");
+      return;
+    }
 
-  const q = questions[currentQuestion];
-  answers[q.id] = selected.value;
+    const q = questions[currentQuestion];
+    answers[q.id] = selected.value;
 
-  const isLastQuestion = currentQuestion === questions.length - 1;
+    const isLastQuestion = currentQuestion === questions.length - 1;
 
-  if (isLastQuestion) {
-    currentQuestion = questions.length; // go to results
-  } else {
-    currentQuestion++;
-  }
-
-  renderQuestion();
-};
-
-  /* BACK */
-  backBtn.onclick = () => {
-    currentQuestion = getPreviousValidIndex(currentQuestion);
+    if (isLastQuestion) {
+      currentQuestion = questions.length;
+    } else {
+      currentQuestion++;
+    }
 
     renderQuestion();
   };
+
+  /* BACK */
+  backBtn.onclick = () => {
+  const prev = getPreviousValidIndex(currentQuestion);
+
+  // If no previous valid question → go back to intro
+  if (prev === 0 && currentQuestion === 0) {
+    goToIntro();
+    return;
+  }
+
+  currentQuestion = prev;
+  renderQuestion();
+};
 }
+
 function restartQuiz() {
   currentQuestion = 0;
   answers = {};
-  document.getElementById("progressBar").parentElement.style.display = "block";
-  document.getElementById("nextBtn").style.display = "inline-block";
-  document.getElementById("backBtn").style.display = "inline-block";
-
-  renderQuestion();
-  updateProgress();
+ goToIntro();
 }
+
 function generateOutcomeIds() {
   console.log("🔥 ANSWERS:", answers);
 
@@ -204,10 +243,8 @@ function generateOutcomeIds() {
     for (const rawField in intervention) {
 
       const field = rawField.trim();
-
       const lowerField = field.toLowerCase();
 
-      // ❌ skip metadata fields
       if (
         lowerField === "outcome_id" ||
         lowerField === "interventions" ||
@@ -219,19 +256,13 @@ function generateOutcomeIds() {
 
       if (!rule || rule === "Does not matter") continue;
 
-      // 🔥 ONLY MATCH IF USER ACTUALLY ANSWERED THIS QUESTION
       const userAnswer =
         answers[field] ??
         answers[lowerField];
 
-      // if this field was never part of the quiz → ignore it
       if (userAnswer === undefined) continue;
 
-      console.log("CHECK FIELD:", {
-        field,
-        rule,
-        userAnswer
-      });
+      console.log("CHECK FIELD:", { field, rule, userAnswer });
 
       const allowed = rule.split(",").map(v => v.trim());
 
@@ -249,37 +280,29 @@ function generateOutcomeIds() {
 
   return [...new Set(matches.map(m => m.Outcome_id))];
 }
-function formatMoney(value) {
-  if (!value) return "";
 
-  const levels = {
-    "1": "€",
-    "2": "€€",
-    "3": "€€€"
-  };
+function formatMoney(value) {
+  if (!value) return "—";
+
+  const levels = { "1": "€", "2": "€€", "3": "€€€" };
 
   return value
     .split(",")
     .map(v => levels[v.trim()] || v.trim())
     .join(" / ");
 }
-function yesNoIcon(value) {
-  if (!value) return "";
 
-  if (value === "Yes") return "✅";
-  if (value === "No") return "❌";
+function formatEffort(value) {
+  if (!value) return "—";
 
-  return value;
-}
-function formatList(value, icon = "") {
-  if (!value) return "";
+  const levels = { "1": "●", "2": "●●", "3": "●●●" };
 
   return value
     .split(",")
-    .map(v => icon + " " + v.trim())
-    .join(" ");
+    .map(v => levels[v.trim()] || v.trim())
+    .join(" / ");
 }
-// ─── showResults ──────────────────────────────────────────────────────────────
+
 // ─── showResults ──────────────────────────────────────────────────────────────
 function showResults() {
   document.getElementById("quiz").style.display = "none";
@@ -323,67 +346,74 @@ function showResults() {
              loading="lazy"
            >
          </div>`
-      : "";
+      : `<div class="card-image-wrap"></div>`;
 
-    // ── Resilience badges (one per comma-separated value)
+    // ── Resilience badges (below image)
     const resilienceHtml = buildResilienceBadges(outcome.Resilliance);
 
     // ── Landlord tile
     const landlordHtml = outcome["Landlord permission"] === "Yes"
-      ? `<div class="info-tile landlord">
+      ? `<a class="info-tile landlord" href="#">
            <span class="info-tile-icon">🏠</span>
-           <div class="info-tile-text">
-             <strong>Landlord approval required</strong>
-             <a href="#">Get mediation help →</a>
-           </div>
-         </div>`
+           <span>This intervention needs approval from your landlord. <strong>Click for help →</strong></span>
+         </a>`
       : "";
 
     // ── Financial tile
     const financialHtml = outcome["Financial support"] === "Yes"
-      ? `<div class="info-tile financial">
+      ? `<a class="info-tile financial" href="#">
            <span class="info-tile-icon">💰</span>
-           <div class="info-tile-text">
-             <strong>Financial support available</strong>
-             <a href="#">See what you qualify for →</a>
-           </div>
-         </div>`
+           <span>You might be eligible for financial support. <strong>See what you qualify for →</strong></span>
+         </a>`
       : "";
 
     const infoTilesHtml = (landlordHtml || financialHtml)
       ? `<div class="info-tiles">${landlordHtml}${financialHtml}</div>`
       : "";
 
-    // ── Permanent meta
-    const permanentHtml = outcome.Permanent
-      ? `<p class="meta-text">${outcome.Permanent === "Yes" ? "🔒 Permanent change" : "↩️ Reversible change"}</p>`
-      : "";
+    // ── Permanence icon (custom images from icon/ folder)
+    const permanenceIcon = outcome.Permanent === "Yes"
+      ? `<img src="icon/permanent.png" alt="Permanent" class="stat-custom-icon" width="25">`
+      : `<img src="icon/notpermanent.png" alt="Not permanent" class="stat-custom-icon" width="25">`;
 
     cardsHtml += `
       <div class="card">
 
         ${imageHtml}
 
-        <div class="card-body">
+        ${resilienceHtml}
 
-          <h3>${intervention.Interventions}</h3>
+        <div class="card-main">
 
-          <div class="stats-row">
-            <span class="stat-pill">💰 ${formatMoney(outcome.Money)}</span>
-            <span class="stat-pill">⚡ ${formatMoney(outcome.Effort)}</span>
+          <div class="card-left">
+            <h3>${intervention.Interventions}</h3>
+            <p class="description">${outcome.Description || ""}</p>
+            ${infoTilesHtml}
           </div>
 
-          ${resilienceHtml}
+          <div class="card-divider"></div>
 
-          <p class="description">${outcome.Description || ""}</p>
-
-          ${infoTilesHtml}
-
-          ${permanentHtml}
-
-          <a class="info-button" href="#">More information</a>
+          <div class="card-right">
+            <div class="stat-block">
+              <span class="stat-label">Permanence</span>
+              ${permanenceIcon}
+            </div>
+            <div class="stat-block">
+              <span class="stat-label">Investment</span>
+              <span class="stat-value">${formatMoney(outcome.Money)}</span>
+            </div>
+            <div class="stat-block">
+              <span class="stat-label">Effort</span>
+              <span class="stat-effort">${formatEffort(outcome.Effort)}</span>
+            </div>
+          </div>
 
         </div>
+
+        <div class="card-footer">
+          <a class="info-button" href="#">Read more</a>
+        </div>
+
       </div>
     `;
   });
@@ -401,11 +431,10 @@ function showResults() {
   document.getElementById("restartBtn").onclick = restartQuiz;
 }
 
-// ─── Resilience badges: splits on comma, one badge per type ──────────────────
+// ─── Resilience badges ────────────────────────────────────────────────────────
 function buildResilienceBadges(value) {
   if (!value) return "";
 
-  // Support both "Heat resilience, Green resilience" and single values
   const parts = value.split(",").map(s => s.trim()).filter(Boolean);
 
   if (parts.length === 0) return "";
@@ -415,11 +444,11 @@ function buildResilienceBadges(value) {
     let cls = "other";
     let icon = "🌱";
 
-    if (lower.includes("heat"))  { cls = "heat resillian";  icon = "🔥"; }
+    if (lower.includes("heat"))       { cls = "heat";  icon = "🔥"; }
     else if (lower.includes("green")) { cls = "green"; icon = "🌿"; }
     else if (lower.includes("water")) { cls = "water"; icon = "💧"; }
 
-    return `<span class="resilience-badge ${cls}">${icon} ${part}</span>`;
+    return `<span class="resilience-badge ${cls}">${icon} ${part} resilliance </span>`;
   }).join("");
 
   return `<div class="resilience-row">${badges}</div>`;
@@ -435,14 +464,6 @@ function normalizeImageUrl(url) {
   return url;
 }
 
-function resilienceIcon(value) {
-  if (!value) return "";
-  const lower = value.toLowerCase();
-  if (lower.includes("heat"))  return "🔥";
-  if (lower.includes("green")) return "🌿";
-  if (lower.includes("water")) return "💧";
-  return "🌱";
-}
 /* ---------------- START ---------------- */
 
 init();
