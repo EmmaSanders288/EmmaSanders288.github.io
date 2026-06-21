@@ -364,7 +364,7 @@ function showResults() {
 
     // ── Landlord tile
     const landlordHtml = outcome["Landlord permission"] === "Yes"
-      ? `<a class="info-tile landlord" href="#">
+      ? `<a class="info-tile landlord" href="https://madeleineleertouwe.wixsite.com/helpmyhouseistoohot/mediation">
            <span class="info-tile-icon">🏠</span>
            <span>This intervention needs approval from your landlord. <strong>Click for help →</strong></span>
          </a>`
@@ -372,9 +372,9 @@ function showResults() {
 
     // ── Financial tile
     const financialHtml = outcome["Financial support"] === "Yes"
-      ? `<a class="info-tile financial" href="#">
+      ? `<a class="info-tile financial" href="https://madeleineleertouwe.wixsite.com/helpmyhouseistoohot/financial">
            <span class="info-tile-icon">💰</span>
-           <span>You might be eligible for financial support. <strong>See what you qualify for →</strong></span>
+           <span>You might be eligible for financial support. <br><strong>See what you qualify for →</strong></span>
          </a>`
       : "";
 
@@ -459,7 +459,7 @@ function buildResilienceBadges(value) {
     else if (lower.includes("green")) { cls = "green"; icon = "🌿"; }
     else if (lower.includes("water")) { cls = "water"; icon = "💧"; }
 
-    return `<span class="resilience-badge ${cls}">${icon} ${part} resilliance </span>`;
+    return `<span class="resilience-badge ${cls}">${icon} ${part} resilience </span>`;
   }).join("");
 
   return `<div class="resilience-row">${badges}</div>`;
