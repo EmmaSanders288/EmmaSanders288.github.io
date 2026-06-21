@@ -13,6 +13,17 @@ let currentQuestion = 0;
 let answers = {};
 let outcomes = [];
 let quizStarted = false;
+const PAGE_BASE_URL = "https://madeleineleertouwe.wixsite.com/helpmyhouseistoohot/";
+
+function slugify(text) {
+  return (text || "")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")  // strip anything not letter/number/space/hyphen
+    .replace(/\s+/g, "-")          // spaces -> hyphens
+    .replace(/-+/g, "-");          // collapse multiple hyphens
+}
 
 /* ---------------- LOAD ---------------- */
 
@@ -320,7 +331,7 @@ function showResults() {
 
   if (matches.length === 0) {
     resultsDiv.innerHTML = `
-      <h2 class="results-title">No matching interventions found</h2>
+      <h2 class="results-title">There are no matching interventions found. Try again, or scroll down to look at all interventions</h2>
       <div class="restart-row">
         <button id="restartBtn">Restart quiz</button>
       </div>
@@ -336,7 +347,7 @@ function showResults() {
       String(o.Outcome_id).trim() === String(intervention.Outcome_id).trim()
     );
     if (!outcome) return;
-
+    const readMoreUrl = PAGE_BASE_URL + slugify(intervention.Interventions);
     // ── Image
     const imageHtml = outcome.Picture
       ? `<div class="card-image-wrap">
@@ -411,8 +422,8 @@ function showResults() {
         </div>
 
         <div class="card-footer">
-          <a class="info-button" href="#">Read more</a>
-        </div>
+  <a class="info-button" href="${readMoreUrl}" target="_blank" rel="noopener noreferrer">Read more</a>
+</div>
 
       </div>
     `;
