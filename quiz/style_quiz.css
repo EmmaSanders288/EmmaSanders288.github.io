@@ -405,3 +405,6 @@ button:disabled {
   text-align: left;
   margin-top: 15px;
 }
+#nextBtn, #backBtn {
+  display: none;
+}
