@@ -124,7 +124,7 @@ function renderIntroScreen() {
 
   quiz.innerHTML = `
   <div class="intro-screen">
-    <h2>Welcome to the Resilience Quiz</h2>
+    <h2>Welcome to the Intervention Quiz</h2>
     
     <p>
       Answer 5 short questions to receive personalized resilience recommendations
@@ -364,7 +364,7 @@ function showResults() {
 
     // ── Landlord tile
     const landlordHtml = outcome["Landlord permission"] === "Yes"
-      ? `<a class="info-tile landlord" href="https://madeleineleertouwe.wixsite.com/helpmyhouseistoohot/mediation">
+      ? `<a class="info-tile landlord" href="https://madeleineleertouwe.wixsite.com/helpmyhouseistoohot/mediation" target="_blank">
            <span class="info-tile-icon">🏠</span>
            <span>This intervention needs approval from your landlord. <strong>Click for help →</strong></span>
          </a>`
@@ -372,7 +372,7 @@ function showResults() {
 
     // ── Financial tile
     const financialHtml = outcome["Financial support"] === "Yes"
-      ? `<a class="info-tile financial" href="https://madeleineleertouwe.wixsite.com/helpmyhouseistoohot/financial">
+      ? `<a class="info-tile financial" href="https://madeleineleertouwe.wixsite.com/helpmyhouseistoohot/financial" target="_blank">
            <span class="info-tile-icon">💰</span>
            <span>You might be eligible for financial support. <br><strong>See what you qualify for →</strong></span>
          </a>`
