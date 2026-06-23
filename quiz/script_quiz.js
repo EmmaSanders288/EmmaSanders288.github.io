@@ -248,8 +248,13 @@ function restartQuiz() {
 
 function generateOutcomeIds() {
   console.log("🔥 ANSWERS:", answers);
-
+  console.log("ALL INTERVENTIONS:", interventions.map(i => i.Outcome_id));
+console.log("ANSWERS:", answers);
+interventions.forEach(i =>
+  console.log("RAW INTERVENTION:", i.Outcome_id, i)
+);
   const matches = interventions.filter(intervention => {
+    console.log("---- checking intervention ----", intervention.Outcome_id);
 
     for (const rawField in intervention) {
 
@@ -276,7 +281,14 @@ function generateOutcomeIds() {
       console.log("CHECK FIELD:", { field, rule, userAnswer });
 
       const allowed = rule.split(",").map(v => v.trim());
-
+      if (!allowed.includes(userAnswer)) {
+  console.log("❌ FAIL INTERVENTION", intervention.Outcome_id, {
+    field,
+    allowed,
+    userAnswer
+  });
+  return false;
+}
       if (!allowed.includes(userAnswer)) {
         console.log("❌ NO MATCH:", { field, allowed, userAnswer });
         return false;
