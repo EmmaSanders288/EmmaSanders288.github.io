@@ -397,7 +397,7 @@ function showResults() {
         <div class="card-main">
 
           <div class="card-left">
-            <h3>${intervention.Interventions}</h3>
+            <h3>${outcome.Names }</h3>
             <p class="description">${outcome.Description || ""}</p>
             ${infoTilesHtml}
           </div>
